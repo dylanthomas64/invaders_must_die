@@ -92,6 +92,7 @@ fn main() {
         .add_system(explosion_to_spawn_system)
         .add_system(explosion_animation_system)
         .add_system(enemy_laser_hit_player_system)
+        .add_system(enemy_player_collision_system)
         .run();
 }
 
@@ -279,6 +280,49 @@ fn explosion_animation_system(
             sprite.index += 1; // move to next sprite cell
             if sprite.index >= EXPLOSION_LENGTH {
                 commands.entity(entity).despawn();
+            }
+        }
+    }
+}
+
+fn enemy_player_collision_system(
+    mut commands: Commands,
+    mut player_state: ResMut<PlayerState>,
+    mut enemy_count: ResMut<EnemyCount>,
+    time: Res<Time>,
+    enemy_query: Query<(Entity, &Transform, &SpriteSize), With<Enemy>>,
+    player_query: Query<(Entity, &Transform, &SpriteSize), With<Player>>,
+) {
+    if let Ok((player_entity, player_tf, player_size)) = player_query.get_single() {
+        let player_scale = Vec2::from(player_tf.scale.xy());
+
+        for (enemy_entity, enemy_tf, enemy_size) in enemy_query.iter() {
+            let laser_scale = Vec2::from(enemy_tf.scale.xy());
+
+            //determine if collision
+            let collision = collide(
+                player_tf.translation,
+                player_size.0 * player_scale,
+                enemy_tf.translation,
+                enemy_size.0 * laser_scale,
+
+            );
+
+            //perform the collision
+            if let Some(_) = collision {
+                // despawn player and laser
+                commands.entity(player_entity).despawn();
+                player_state.shot(time.seconds_since_startup());
+
+                commands.entity(enemy_entity).despawn();
+
+                // spawn explosion
+                commands.spawn().insert(ExplosionToSpawn(player_tf.translation.clone()));
+                commands.spawn().insert(ExplosionToSpawn(enemy_tf.translation.clone()));
+
+                enemy_count.0 -= 1;
+
+                break;
             }
         }
     }
