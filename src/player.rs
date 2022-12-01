@@ -31,6 +31,10 @@ fn player_spawn_system(
     let last_shot = player_state.last_shot;
 
     if !player_state.on && (last_shot == -1. || now > last_shot + PLAYER_RESPAWN_DELAY) {
+        // show player score
+        println!("Final score: {}", player_state.score);
+        player_state.score = 0;
+
          // add player
     let bottom = -win_size.h / 2.;
     commands

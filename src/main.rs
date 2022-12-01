@@ -48,6 +48,7 @@ struct EnemyCount(u32);
 struct PlayerState {
     on: bool, // alive
     last_shot: f64, // -1 if not shot
+    score: u32,
 }
 
 impl Default for PlayerState {
@@ -55,6 +56,7 @@ impl Default for PlayerState {
         Self {
             on: false,
             last_shot: -1.,
+            score: 0,
         }
     }
 }
@@ -104,6 +106,8 @@ fn setup_system(
 ) {
     // 2d camera
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+
+
 
     //capture window size
     let window = windows.get_primary_mut().unwrap();
@@ -161,6 +165,7 @@ fn moveable_system(
 fn player_laser_hit_enemy_system(
     mut commands: Commands,
     mut enemy_count: ResMut<EnemyCount>,
+    mut player_state: ResMut<PlayerState>,
     laser_query: Query<(Entity, &Transform, &SpriteSize), (With<Laser>, With<FromPlayer>)>,
     enemy_query: Query<(Entity, &Transform, &SpriteSize), With<Enemy>>,
 ) {
@@ -199,8 +204,10 @@ fn player_laser_hit_enemy_system(
                 commands.entity(laser_entity).despawn();
                 despawned_enemies.insert(laser_entity);
 
-                // spawn explosionToSpawn
+                // add to score
+                player_state.score += 1;
 
+                // spawn explosionToSpawn
                 commands.spawn().insert(ExplosionToSpawn(enemy_tf.translation.clone()));
             }
         }
