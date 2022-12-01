@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
 use crate::{
-    components::{Enemy, SpriteSize, FromEnemy, Laser, Movable, Velocity},
+    components::{Enemy, SpriteSize, FromEnemy, Laser, Movable, Velocity, Player},
     GameTextures, WinSize, ENEMY_SIZE, SPRITE_SCALE, EnemyCount, ENEMY_MAX, ENEMY_LASER_SIZE, BASE_SPEED, TIME_STEP,
 };
 use bevy::{prelude::*, core::FixedTimestep, ecs::schedule::ShouldRun};
@@ -16,12 +16,8 @@ impl Plugin for EnemyPlugin {
                 .with_run_criteria(FixedTimestep::step(1.))
                 .with_system(enemy_spawn_system),
         )
-        .add_system_set(
-            SystemSet::new()
-                .with_run_criteria(enemy_fire_criteria)
-                .with_system(enemy_fire_system)
-        )
-        .add_system(enemy_movement_system);
+        .add_system(enemy_movement_system)
+        .add_system(enemy_fire_system);
     }
 }
 
@@ -68,30 +64,35 @@ fn enemy_fire_system(
     mut commands: Commands,
     game_textures: Res<GameTextures>,
     enemy_query: Query<&Transform, With<Enemy>>,
+    player_query: Query<&Transform, With<Player>>,
 ) {
     for &tf in enemy_query.iter() {
         let (x, y) = (tf.translation.x, tf.translation.y);
-        // spawn enemy laser sprite
-        commands.spawn_bundle(SpriteBundle {
-            texture: game_textures.enemy_laser.clone(),
-            transform: Transform {
-                translation: Vec3::new(x, y - 15., 0.),
-                rotation: Quat::from_rotation_x(PI),
-                scale: Vec3::new(SPRITE_SCALE, SPRITE_SCALE, 0.),
-                ..Default::default()
-            },
-
-            ..Default::default()
-        })
-        .insert(Laser)
-        .insert(SpriteSize::from(ENEMY_LASER_SIZE))
-        .insert(FromEnemy)
-        .insert(Movable { auto_despawn: true })
-        .insert(Velocity { x: 0., y: -1.5});
+        for player_tf in player_query.iter() {
+            let range = (x-5.)..(x+5.);
+            if range.contains(&player_tf.translation.x) {
+                // spawn enemy laser sprite
+                commands.spawn_bundle(SpriteBundle {
+                    texture: game_textures.enemy_laser.clone(),
+                    transform: Transform {
+                        translation: Vec3::new(x, y - 15., 0.),
+                        rotation: Quat::from_rotation_x(PI),
+                        scale: Vec3::new(SPRITE_SCALE, SPRITE_SCALE, 0.),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(Laser)
+                .insert(SpriteSize::from(ENEMY_LASER_SIZE))
+                .insert(FromEnemy)
+                .insert(Movable { auto_despawn: true })
+                .insert(Velocity { x: 0., y: -1.5});
+            }
+        }
     }
 }
 
-fn enemy_movement_system(time: Res<Time>, mut query: Query<&mut Transform, With<Enemy>>) {
+fn enemy_movement_system(win_size: Res<WinSize>, time: Res<Time>, mut query: Query<&mut Transform, With<Enemy>>) {
     let now = time.seconds_since_startup() as f32;
     for mut transform in query.iter_mut() {
         // current position
@@ -101,7 +102,10 @@ fn enemy_movement_system(time: Res<Time>, mut query: Query<&mut Transform, With<
         let angle = dir * BASE_SPEED * 0.2 * TIME_STEP * now % 360.;
         let radius = 3.;
 
-        let max_distance = TIME_STEP * BASE_SPEED;
+        //let max_distance = TIME_STEP * BASE_SPEED;
+        //let distance_from_edge = win_size.w / 2. - x_org.abs();
+        //println!("{distance_from_edge}");
+        //let radius = distance_from_edge;
 
         let x_dst = x_org + angle.sin() * radius;
         let y_dst = y_org + angle.cos() * radius;
