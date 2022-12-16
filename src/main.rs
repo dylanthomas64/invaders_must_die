@@ -109,6 +109,7 @@ fn setup_system(
 
 
 
+
     //capture window size
     let window = windows.get_primary_mut().unwrap();
     let (win_w, win_h) = (window.width(), window.height());
