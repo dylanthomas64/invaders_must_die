@@ -1,10 +1,11 @@
 use std::f32::consts::PI;
 
 use crate::{
-    components::{Enemy, SpriteSize, FromEnemy, Laser, Movable, Velocity, Player},
-    GameTextures, WinSize, ENEMY_SIZE, SPRITE_SCALE, EnemyCount, ENEMY_MAX, ENEMY_LASER_SIZE, BASE_SPEED, TIME_STEP,
+    components::{Enemy, FromEnemy, Laser, Movable, Player, SpriteSize, Velocity},
+    EnemyCount, GameTextures, WinSize, BASE_SPEED, ENEMY_LASER_SIZE, ENEMY_MAX, ENEMY_SIZE,
+    SPRITE_SCALE, TIME_STEP,
 };
-use bevy::{prelude::*, time::FixedTimestep, ecs::schedule::ShouldRun};
+use bevy::{ecs::schedule::ShouldRun, prelude::*, time::FixedTimestep};
 use rand::{thread_rng, Rng};
 
 pub struct EnemyPlugin;
@@ -29,26 +30,26 @@ fn enemy_spawn_system(
 ) {
     if enemy_count.0 < ENEMY_MAX {
         // compute the x/y
-    let mut rng = thread_rng();
-    let w_span = win_size.w / 2. - 100.;
-    let h_span = win_size.h / 2. - 100.;
-    let x = rng.gen_range(-w_span..w_span);
-    let y = rng.gen_range(-h_span..h_span);
+        let mut rng = thread_rng();
+        let w_span = win_size.w / 2. - 100.;
+        let h_span = win_size.h / 2. - 100.;
+        let x = rng.gen_range(-w_span..w_span);
+        let y = rng.gen_range(-h_span..h_span);
 
-    commands
-        .spawn_bundle(SpriteBundle {
-            texture: game_textures.enemy.clone(),
-            transform: Transform {
-                translation: Vec3::new(x, y, 10.),
-                scale: Vec3::new(SPRITE_SCALE, SPRITE_SCALE, 0.),
+        commands
+            .spawn(SpriteBundle {
+                texture: game_textures.enemy.clone(),
+                transform: Transform {
+                    translation: Vec3::new(x, y, 10.),
+                    scale: Vec3::new(SPRITE_SCALE, SPRITE_SCALE, 0.),
+                    ..Default::default()
+                },
                 ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(Enemy)
-        .insert(SpriteSize::from(ENEMY_SIZE));
+            })
+            .insert(Enemy)
+            .insert(SpriteSize::from(ENEMY_SIZE));
 
-    enemy_count.0 += 1;
+        enemy_count.0 += 1;
     }
 }
 
@@ -69,30 +70,34 @@ fn enemy_fire_system(
     for &tf in enemy_query.iter() {
         let (x, y) = (tf.translation.x, tf.translation.y);
         for player_tf in player_query.iter() {
-            let range = (x-5.)..(x+5.);
+            let range = (x - 5.)..(x + 5.);
             if range.contains(&player_tf.translation.x) {
                 // spawn enemy laser sprite
-                commands.spawn_bundle(SpriteBundle {
-                    texture: game_textures.enemy_laser.clone(),
-                    transform: Transform {
-                        translation: Vec3::new(x, y - 15., 0.),
-                        rotation: Quat::from_rotation_x(PI),
-                        scale: Vec3::new(SPRITE_SCALE, SPRITE_SCALE, 0.),
+                commands
+                    .spawn(SpriteBundle {
+                        texture: game_textures.enemy_laser.clone(),
+                        transform: Transform {
+                            translation: Vec3::new(x, y - 15., 0.),
+                            rotation: Quat::from_rotation_x(PI),
+                            scale: Vec3::new(SPRITE_SCALE, SPRITE_SCALE, 0.),
+                        },
                         ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .insert(Laser)
-                .insert(SpriteSize::from(ENEMY_LASER_SIZE))
-                .insert(FromEnemy)
-                .insert(Movable { auto_despawn: true })
-                .insert(Velocity { x: 0., y: -1.5});
+                    })
+                    .insert(Laser)
+                    .insert(SpriteSize::from(ENEMY_LASER_SIZE))
+                    .insert(FromEnemy)
+                    .insert(Movable { auto_despawn: true })
+                    .insert(Velocity { x: 0., y: -1.5 });
             }
         }
     }
 }
 
-fn enemy_movement_system(win_size: Res<WinSize>, time: Res<Time>, mut query: Query<&mut Transform, With<Enemy>>) {
+fn enemy_movement_system(
+    _win_size: Res<WinSize>,
+    time: Res<Time>,
+    mut query: Query<&mut Transform, With<Enemy>>,
+) {
     let now = time.elapsed_seconds();
     for mut transform in query.iter_mut() {
         // current position
@@ -111,11 +116,11 @@ fn enemy_movement_system(win_size: Res<WinSize>, time: Res<Time>, mut query: Que
         let y_dst = y_org + angle.cos() * radius;
 
         (transform.translation.x, transform.translation.y) = (x_dst, y_dst);
-        /* 
+        /*
         // max distance
         let max_distance = TIME_STEP * BASE_SPEED;
 
-        // fixtures 
+        // fixtures
         let dir: f32 = -1.; // 1 is anticlockwise
         let (x_pivot, y_pivot) = (0., 0.);
         let (x_radius, y_radius) = (200., 130.);
@@ -142,7 +147,7 @@ fn enemy_movement_system(win_size: Res<WinSize>, time: Res<Time>, mut query: Que
         let translation = &mut transform.translation;
         (translation.x, translation.y) = (x, y);
 
-        /* 
+        /*
         let translation = &mut transform.translation;
         translation.x += BASE_SPEED * TIME_STEP / 4.;
         translation.y += BASE_SPEED * TIME_STEP / 4.;
@@ -150,5 +155,4 @@ fn enemy_movement_system(win_size: Res<WinSize>, time: Res<Time>, mut query: Que
 
         */
     }
-
 }

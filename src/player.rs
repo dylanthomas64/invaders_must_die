@@ -1,6 +1,7 @@
 use crate::{
-    components::{FromPlayer, Movable, Player, SpriteSize, Velocity, Laser},
-    GameTextures, WinSize, BASE_SPEED, PLAYER_LASER_SIZE, PLAYER_SIZE, SPRITE_SCALE, TIME_STEP, PlayerState, PLAYER_RESPAWN_DELAY,
+    components::{FromPlayer, Laser, Movable, Player, SpriteSize, Velocity},
+    GameTextures, PlayerState, WinSize, PLAYER_LASER_SIZE, PLAYER_RESPAWN_DELAY, PLAYER_SIZE,
+    SPRITE_SCALE,
 };
 use bevy::{prelude::*, time::FixedTimestep};
 
@@ -8,13 +9,12 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .insert_resource(PlayerState::default())
+        app.insert_resource(PlayerState::default())
             .add_system_set(
-            SystemSet::new()
-            .with_run_criteria(FixedTimestep::step(0.5))
-            .with_system(player_spawn_system)
-        )
+                SystemSet::new()
+                    .with_run_criteria(FixedTimestep::step(0.5))
+                    .with_system(player_spawn_system),
+            )
             .add_system(player_keyboard_event_system)
             .add_system(player_fire_system);
     }
@@ -31,36 +31,39 @@ fn player_spawn_system(
     let last_shot = player_state.last_shot;
 
     if !player_state.on && (last_shot == -1. || now > last_shot + PLAYER_RESPAWN_DELAY) {
-        // show player score
-        println!("Final score: {}", player_state.score);
+        // reset score
         player_state.score = 0;
 
-         // add player
-    let bottom = -win_size.h / 2.;
-    commands
-        .spawn_bundle(SpriteBundle {
-            texture: game_textures.player.clone(),
-            transform: Transform {
-                // vec3::new(x, y (+ padding), z)
-                translation: Vec3::new(0., bottom + PLAYER_SIZE.1 / 2. * SPRITE_SCALE + 5., 10.),
-                scale: Vec3::new(SPRITE_SCALE, SPRITE_SCALE, 1.),
-                ..Default::default()
-            },
+        // add player
+        let bottom = -win_size.h / 2.;
+        commands
+            .spawn(SpriteBundle {
+                texture: game_textures.player.clone(),
+                transform: Transform {
+                    // vec3::new(x, y (+ padding), z)
+                    translation: Vec3::new(
+                        0.,
+                        bottom + PLAYER_SIZE.1 / 2. * SPRITE_SCALE + 5.,
+                        10.,
+                    ),
+                    scale: Vec3::new(SPRITE_SCALE, SPRITE_SCALE, 1.),
+                    ..Default::default()
+                },
 
-            /* // add rectangle
-            sprite: Sprite {
-                color: Color::rgb(0.25, 0.25, 0.75),
-                custom_size: Some(Vec2::new(150.0, 150.0)),
+                /* // add rectangle
+                sprite: Sprite {
+                    color: Color::rgb(0.25, 0.25, 0.75),
+                    custom_size: Some(Vec2::new(150.0, 150.0)),
+                    ..Default::default()
+                }, */
                 ..Default::default()
-            }, */
-            ..Default::default()
-        })
-        .insert(Player)
-        .insert(SpriteSize::from(PLAYER_SIZE))
-        .insert(Velocity { x: 0., y: 0. })
-        .insert(Movable {
-            auto_despawn: false,
-        });
+            })
+            .insert(Player)
+            .insert(SpriteSize::from(PLAYER_SIZE))
+            .insert(Velocity { x: 0., y: 0. })
+            .insert(Movable {
+                auto_despawn: false,
+            });
         player_state.spawned();
     }
 }
@@ -97,7 +100,7 @@ fn player_fire_system(
             // create closure so multiple lasers can be spawned
             let mut spawn_laser = |x_offset: f32, y_offset: f32| {
                 commands
-                    .spawn_bundle(SpriteBundle {
+                    .spawn(SpriteBundle {
                         texture: game_textures.player_laser.clone(),
                         transform: Transform {
                             translation: Vec3::new(x + x_offset, y + y_offset, 0.),

@@ -38,8 +38,6 @@ pub struct Enemy;
 #[derive(Component)]
 pub struct FromEnemy;
 
-
-
 // explosion components
 #[derive(Component)]
 pub struct Explosion;
