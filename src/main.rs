@@ -79,7 +79,8 @@ impl PlayerState {
     }
 }
 
-
+#[derive(Component)]
+pub struct PlayerScore;
 
 
 fn main() {
@@ -103,6 +104,7 @@ fn main() {
         .add_system(explosion_animation_system)
         .add_system(enemy_laser_hit_player_system)
         .add_system(enemy_player_collision_system)
+        .add_system(player_score_update_system)
         .run();
 }
 
@@ -114,6 +116,28 @@ fn setup_system(
 ) {
     // 2d camera
     commands.spawn(Camera2dBundle::default());
+
+
+    // Text with multiple sections
+    commands.spawn((
+        // Create a TextBundle that has a Text with a list of sections.
+        TextBundle::from_sections([
+            TextSection::new(
+                "Score: ",
+                TextStyle {
+                    font: asset_server.load("fonts/FiraSans-Black.ttf"),
+                    font_size: 60.0,
+                    color: Color::WHITE,
+                },
+            ),
+            TextSection::from_style(TextStyle {
+                font: asset_server.load("fonts/FiraSans-Black.ttf"),
+                font_size: 60.0,
+                color: Color::GOLD,
+            }),
+        ]),
+        PlayerScore,
+    ));
 
 
 
@@ -342,4 +366,14 @@ fn enemy_player_collision_system(
             }
         }
     }
+}
+
+fn player_score_update_system(
+    player_state: Res<PlayerState>,
+    mut query: Query<&mut Text, With<PlayerScore>>, 
+) {
+    for mut text in &mut query {
+        text.sections[1].value = player_state.score.to_string();
+    }
+
 }
