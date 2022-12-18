@@ -1,5 +1,7 @@
+use std::f32::consts::PI;
+
 use crate::{
-    components::{FromPlayer, Laser, Movable, Player, SpriteSize, Velocity},
+    components::{FromPlayer, Laser, Movable, Player, SpriteSize, Velocity, Orientation},
     GameTextures, PlayerState, WinSize, PLAYER_LASER_SIZE, PLAYER_RESPAWN_DELAY, PLAYER_SIZE,
     SPRITE_SCALE,
 };
@@ -61,6 +63,7 @@ fn player_spawn_system(
             .insert(Player)
             .insert(SpriteSize::from(PLAYER_SIZE))
             .insert(Velocity { x: 0., y: 0. })
+            .insert(Orientation {theta: 0.})
             .insert(Movable {
                 auto_despawn: false,
             });
@@ -70,16 +73,41 @@ fn player_spawn_system(
 
 fn player_keyboard_event_system(
     kb: Res<Input<KeyCode>>,
-    mut query: Query<&mut Velocity, With<Player>>,
+    mut query: Query<(&mut Velocity, &mut Orientation), With<Player>>,
 ) {
-    if let Ok(mut velocity) = query.get_single_mut() {
-        velocity.x = if kb.pressed(KeyCode::Left) {
+    for (mut velocity, mut orientation) in query.iter_mut() {
+
+        // WASD
+        velocity.x = if kb.pressed(KeyCode::A) {
             -1.
-        } else if kb.pressed(KeyCode::Right) {
+        } else if kb.pressed(KeyCode::D) {
             1.
         } else {
             0.
+        };
+
+        velocity.y = if kb.pressed(KeyCode::W) {
+            1.
+        } else if kb.pressed(KeyCode::S) {
+            -1.
+        } else {
+            0.
+        };
+
+        // DIRECTION w/ arrow keys
+        orientation.theta = if kb.pressed(KeyCode::Up) {
+            0.
+        } else if kb.pressed(KeyCode::Down) {
+            PI
+        } else if kb.pressed(KeyCode::Right) {
+            3. * PI / 2.
+        } else if kb.pressed(KeyCode::Left) {
+            PI / 2.
         }
+        else { continue };
+
+
+
     }
 }
 
@@ -113,7 +141,8 @@ fn player_fire_system(
                     .insert(Movable { auto_despawn: true })
                     .insert(Velocity { x: 0., y: 2. })
                     .insert(FromPlayer)
-                    .insert(SpriteSize::from(PLAYER_LASER_SIZE));
+                    .insert(SpriteSize::from(PLAYER_LASER_SIZE))
+                    .insert(Orientation { theta: PI });
             };
             spawn_laser(x_offset, 0.);
             spawn_laser(-x_offset, 0.);

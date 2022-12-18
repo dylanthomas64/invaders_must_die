@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
 use crate::{
-    components::{Enemy, FromEnemy, Laser, Movable, Player, SpriteSize, Velocity},
+    components::{Enemy, FromEnemy, Laser, Movable, Player, SpriteSize, Velocity, Orientation},
     EnemyCount, GameTextures, WinSize, BASE_SPEED, ENEMY_LASER_SIZE, ENEMY_MAX, ENEMY_SIZE,
     SPRITE_SCALE, TIME_STEP,
 };
@@ -87,7 +87,8 @@ fn enemy_fire_system(
                     .insert(SpriteSize::from(ENEMY_LASER_SIZE))
                     .insert(FromEnemy)
                     .insert(Movable { auto_despawn: true })
-                    .insert(Velocity { x: 0., y: -1.5 });
+                    .insert(Velocity { x: 0., y: -1.5 })
+                    .insert(Orientation{theta: PI});
             }
         }
     }

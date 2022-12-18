@@ -1,10 +1,15 @@
-use bevy::{prelude::Component, prelude::*};
+use bevy::{prelude::Component, prelude::*, ecs::component};
 
 // common components
 #[derive(Component)]
 pub struct Velocity {
     pub x: f32,
     pub y: f32,
+}
+
+#[derive(Component)]
+pub struct Orientation {
+    pub theta: f32,
 }
 
 #[derive(Component)]

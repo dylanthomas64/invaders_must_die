@@ -1,7 +1,7 @@
 use bevy::{math::Vec3Swizzles, prelude::*, sprite::collide_aabb::collide, utils::HashSet};
 use components::{
     Enemy, Explosion, ExplosionTimer, ExplosionToSpawn, FromEnemy, FromPlayer, Laser, Movable,
-    Player, SpriteSize, Velocity,
+    Player, SpriteSize, Velocity, Orientation,
 };
 use enemy::EnemyPlugin;
 use player::PlayerPlugin;
@@ -170,9 +170,9 @@ fn setup_system(
 fn moveable_system(
     mut commands: Commands,
     win_size: Res<WinSize>,
-    mut query: Query<(Entity, &Velocity, &mut Transform, &Movable)>,
+    mut query: Query<(Entity, &Velocity, &Orientation, &mut Transform, &Movable)>,
 ) {
-    for (entity, velocity, mut transform, movable) in query.iter_mut() {
+    for (entity, velocity, orientation, mut transform, movable) in query.iter_mut() {
         let translation = &mut transform.translation;
         translation.x += velocity.x * TIME_STEP * BASE_SPEED;
         translation.y += velocity.y * TIME_STEP * BASE_SPEED;
@@ -189,6 +189,9 @@ fn moveable_system(
                 commands.entity(entity).despawn();
             }
         }
+
+        transform.rotation = Quat::from_rotation_z((orientation.theta));
+
     }
 }
 
