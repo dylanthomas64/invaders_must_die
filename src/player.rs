@@ -2,7 +2,7 @@ use crate::{
     components::{FromPlayer, Movable, Player, SpriteSize, Velocity, Laser},
     GameTextures, WinSize, BASE_SPEED, PLAYER_LASER_SIZE, PLAYER_SIZE, SPRITE_SCALE, TIME_STEP, PlayerState, PLAYER_RESPAWN_DELAY,
 };
-use bevy::{prelude::*, core::FixedTimestep};
+use bevy::{prelude::*, time::FixedTimestep};
 
 pub struct PlayerPlugin;
 
@@ -27,7 +27,7 @@ fn player_spawn_system(
     game_textures: Res<GameTextures>,
     win_size: Res<WinSize>,
 ) {
-    let now = time.seconds_since_startup();
+    let now = time.elapsed_seconds_f64();
     let last_shot = player_state.last_shot;
 
     if !player_state.on && (last_shot == -1. || now > last_shot + PLAYER_RESPAWN_DELAY) {

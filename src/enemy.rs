@@ -4,7 +4,7 @@ use crate::{
     components::{Enemy, SpriteSize, FromEnemy, Laser, Movable, Velocity, Player},
     GameTextures, WinSize, ENEMY_SIZE, SPRITE_SCALE, EnemyCount, ENEMY_MAX, ENEMY_LASER_SIZE, BASE_SPEED, TIME_STEP,
 };
-use bevy::{prelude::*, core::FixedTimestep, ecs::schedule::ShouldRun};
+use bevy::{prelude::*, time::FixedTimestep, ecs::schedule::ShouldRun};
 use rand::{thread_rng, Rng};
 
 pub struct EnemyPlugin;
@@ -93,7 +93,7 @@ fn enemy_fire_system(
 }
 
 fn enemy_movement_system(win_size: Res<WinSize>, time: Res<Time>, mut query: Query<&mut Transform, With<Enemy>>) {
-    let now = time.seconds_since_startup() as f32;
+    let now = time.elapsed_seconds();
     for mut transform in query.iter_mut() {
         // current position
         let (x_org, y_org) = (transform.translation.x, transform.translation.y);

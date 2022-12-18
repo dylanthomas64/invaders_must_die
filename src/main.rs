@@ -31,11 +31,14 @@ const PLAYER_RESPAWN_DELAY: f64 =  2.;
 const ENEMY_MAX: u32 = 2;
 
 // Resources
+
+#[derive(Resource)]
 pub struct WinSize {
     pub w: f32,
     pub h: f32,
 }
 
+#[derive(Resource)]
 struct GameTextures {
     player: Handle<Image>,
     player_laser: Handle<Image>,
@@ -43,8 +46,11 @@ struct GameTextures {
     explosion: Handle<TextureAtlas>,
     enemy_laser: Handle<Image>,
 }
+
+#[derive(Resource)]
 struct EnemyCount(u32);
 
+#[derive(Resource)]
 struct PlayerState {
     on: bool, // alive
     last_shot: f64, // -1 if not shot
@@ -79,13 +85,15 @@ impl PlayerState {
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
-        .insert_resource(WindowDescriptor {
-            title: "Invaders must die".to_string(),
-            width: 598.0,
-            height: 676.0,
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            window: WindowDescriptor {
+                title: "Invaders must die".to_string(),
+                width: 598.0,
+                height: 676.0,
+                ..Default::default()
+            },
             ..Default::default()
-        })
-        .add_plugins(DefaultPlugins)
+        }))
         .add_plugin(PlayerPlugin)
         .add_plugin(EnemyPlugin)
         .add_startup_system(setup_system)
@@ -105,7 +113,7 @@ fn setup_system(
     mut windows: ResMut<Windows>,
 ) {
     // 2d camera
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+    commands.spawn(Camera2dBundle::default());
 
 
 
@@ -115,7 +123,7 @@ fn setup_system(
     let (win_w, win_h) = (window.width(), window.height());
 
     // position window
-    window.set_position(IVec2::new(800, 0));
+    // window.set_position(IVec2::new(800, 0));
 
     // add winsize resource
     let win_size = WinSize { w: win_w, h: win_h };
@@ -123,7 +131,7 @@ fn setup_system(
 
     // create explosion texture atlas
     let texture_handle = asset_server.load(EXPLOSION);
-    let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(64., 64.), 4, 4);
+    let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(64., 64.), 4, 4, None, None);
     let explosion = texture_atlases.add(texture_atlas);
 
     // add game textures resource
@@ -209,7 +217,7 @@ fn player_laser_hit_enemy_system(
                 player_state.score += 1;
 
                 // spawn explosionToSpawn
-                commands.spawn().insert(ExplosionToSpawn(enemy_tf.translation.clone()));
+                commands.spawn(ExplosionToSpawn(enemy_tf.translation.clone()));
             }
         }
     }
@@ -241,12 +249,12 @@ fn enemy_laser_hit_player_system(
             if let Some(_) = collision {
                 // despawn player and laser
                 commands.entity(player_entity).despawn();
-                player_state.shot(time.seconds_since_startup());
+                player_state.shot(time.elapsed_seconds_f64());
 
                 commands.entity(laser_entity).despawn();
 
                 // spawn explosion
-                commands.spawn().insert(ExplosionToSpawn(player_tf.translation.clone()));
+                commands.spawn(ExplosionToSpawn(player_tf.translation.clone()));
 
                 break;
             }
@@ -320,13 +328,13 @@ fn enemy_player_collision_system(
             if let Some(_) = collision {
                 // despawn player and laser
                 commands.entity(player_entity).despawn();
-                player_state.shot(time.seconds_since_startup());
+                player_state.shot(time.elapsed_seconds_f64());
 
                 commands.entity(enemy_entity).despawn();
 
                 // spawn explosion
-                commands.spawn().insert(ExplosionToSpawn(player_tf.translation.clone()));
-                commands.spawn().insert(ExplosionToSpawn(enemy_tf.translation.clone()));
+                commands.spawn(ExplosionToSpawn(player_tf.translation.clone()));
+                commands.spawn(ExplosionToSpawn(enemy_tf.translation.clone()));
 
                 enemy_count.0 -= 1;
 
