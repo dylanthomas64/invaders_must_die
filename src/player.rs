@@ -63,7 +63,7 @@ fn player_spawn_system(
             .insert(Player)
             .insert(SpriteSize::from(PLAYER_SIZE))
             .insert(Velocity { x: 0., y: 0. })
-            .insert(Orientation {theta: Quat::from_rotation_z(0.)})
+            .insert(Orientation::default())
             .insert(Movable {
                 auto_despawn: false,
             });
@@ -96,13 +96,13 @@ fn player_keyboard_event_system(
 
         // DIRECTION w/ arrow keys
         orientation.theta = if kb.pressed(KeyCode::Up) {
-            Quat::from_rotation_z(0.)
+            0.
         } else if kb.pressed(KeyCode::Down) {
-            Quat::from_rotation_z(PI)
+            PI
         } else if kb.pressed(KeyCode::Right) {
-            Quat::from_rotation_z(3. * PI / 2.)
+            3. * PI / 2.
         } else if kb.pressed(KeyCode::Left) {
-            Quat::from_rotation_z(PI / 2.)
+            PI / 2.
         }
         else { continue };
 
@@ -115,11 +115,11 @@ fn player_fire_system(
     mut commands: Commands,
     kb: Res<Input<KeyCode>>,
     game_textures: Res<GameTextures>,
-    query: Query<&Transform, With<Player>>,
+    query: Query<(&Transform, &Orientation), With<Player>>,
 ) {
-    if let Ok(player_tf) = query.get_single() {
+    for (player_tf, orientation) in query.iter() {
         if kb.just_pressed(KeyCode::Space) {
-            let (x, y, theta) = (player_tf.translation.x, player_tf.translation.y, player_tf.rotation);
+            let (x, y, theta) = (player_tf.translation.x, player_tf.translation.y, orientation.theta);
 
             // offset to change where laser fires from
             let x_offset = PLAYER_SIZE.0 / 4. * SPRITE_SCALE;
@@ -132,7 +132,7 @@ fn player_fire_system(
                         texture: game_textures.player_laser.clone(),
                         transform: Transform {
                             translation: Vec3::new(x + x_offset, y + y_offset, 0.),
-                            rotation: theta,
+                            rotation: Quat::from_rotation_z(theta),
                             scale: Vec3::new(SPRITE_SCALE, SPRITE_SCALE, 1.),
                             ..Default::default()
                         },
@@ -140,14 +140,18 @@ fn player_fire_system(
                     })
                     .insert(Laser)
                     .insert(Movable { auto_despawn: true })
-                    .insert(Velocity { x: 0., y: 2. })
+                    .insert(Velocity { x: - 2.*orientation.theta.sin(), y: 2.*orientation.theta.cos() }) // laser speed of 2
                     .insert(FromPlayer)
                     .insert(SpriteSize::from(PLAYER_LASER_SIZE))
                     .insert(Orientation { theta: theta });
             };
-            spawn_laser(x_offset, 0.);
-            spawn_laser(-x_offset, 0.);
-            spawn_laser(0., y_offset);
+
+            spawn_laser(0., 0.)
+
+            // spawn three lasers
+            //spawn_laser(x_offset, 0.);
+            //spawn_laser(-x_offset, 0.);
+            //spawn_laser(0., y_offset);
         }
     }
 }
