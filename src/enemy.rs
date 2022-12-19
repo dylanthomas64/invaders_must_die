@@ -88,7 +88,7 @@ fn enemy_fire_system(
                     .insert(FromEnemy)
                     .insert(Movable { auto_despawn: true })
                     .insert(Velocity { x: 0., y: -1.5 })
-                    .insert(Orientation{theta: PI});
+                    .insert(Orientation::default());
             }
         }
     }

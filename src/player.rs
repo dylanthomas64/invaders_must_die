@@ -63,7 +63,7 @@ fn player_spawn_system(
             .insert(Player)
             .insert(SpriteSize::from(PLAYER_SIZE))
             .insert(Velocity { x: 0., y: 0. })
-            .insert(Orientation {theta: 0.})
+            .insert(Orientation {theta: Quat::from_rotation_z(0.)})
             .insert(Movable {
                 auto_despawn: false,
             });
@@ -96,13 +96,13 @@ fn player_keyboard_event_system(
 
         // DIRECTION w/ arrow keys
         orientation.theta = if kb.pressed(KeyCode::Up) {
-            0.
+            Quat::from_rotation_z(0.)
         } else if kb.pressed(KeyCode::Down) {
-            PI
+            Quat::from_rotation_z(PI)
         } else if kb.pressed(KeyCode::Right) {
-            3. * PI / 2.
+            Quat::from_rotation_z(3. * PI / 2.)
         } else if kb.pressed(KeyCode::Left) {
-            PI / 2.
+            Quat::from_rotation_z(PI / 2.)
         }
         else { continue };
 
@@ -119,7 +119,7 @@ fn player_fire_system(
 ) {
     if let Ok(player_tf) = query.get_single() {
         if kb.just_pressed(KeyCode::Space) {
-            let (x, y) = (player_tf.translation.x, player_tf.translation.y);
+            let (x, y, theta) = (player_tf.translation.x, player_tf.translation.y, player_tf.rotation);
 
             // offset to change where laser fires from
             let x_offset = PLAYER_SIZE.0 / 4. * SPRITE_SCALE;
@@ -132,6 +132,7 @@ fn player_fire_system(
                         texture: game_textures.player_laser.clone(),
                         transform: Transform {
                             translation: Vec3::new(x + x_offset, y + y_offset, 0.),
+                            rotation: theta,
                             scale: Vec3::new(SPRITE_SCALE, SPRITE_SCALE, 1.),
                             ..Default::default()
                         },
@@ -142,7 +143,7 @@ fn player_fire_system(
                     .insert(Velocity { x: 0., y: 2. })
                     .insert(FromPlayer)
                     .insert(SpriteSize::from(PLAYER_LASER_SIZE))
-                    .insert(Orientation { theta: PI });
+                    .insert(Orientation { theta: theta });
             };
             spawn_laser(x_offset, 0.);
             spawn_laser(-x_offset, 0.);

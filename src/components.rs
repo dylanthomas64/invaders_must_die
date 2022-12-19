@@ -9,7 +9,13 @@ pub struct Velocity {
 
 #[derive(Component)]
 pub struct Orientation {
-    pub theta: f32,
+    pub theta: Quat
+}
+
+impl Default for Orientation {
+    fn default() -> Self {
+        Orientation { theta: Quat::from_rotation_z(0.) }
+    }
 }
 
 #[derive(Component)]

@@ -190,7 +190,7 @@ fn moveable_system(
             }
         }
 
-        transform.rotation = Quat::from_rotation_z((orientation.theta));
+        transform.rotation = orientation.theta;
 
     }
 }
