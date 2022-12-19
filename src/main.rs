@@ -102,7 +102,7 @@ fn main() {
         .add_startup_system(setup_system)
         .add_system(gamepad_connections)
         .add_system(gamepad_input)
-        .add_system(moveable_system)
+        .add_system(moveable_system.after(gamepad_input))
         .add_system(player_laser_hit_enemy_system)
         .add_system(explosion_to_spawn_system)
         .add_system(explosion_animation_system)
