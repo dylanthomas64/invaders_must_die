@@ -1,4 +1,4 @@
-use bevy::{prelude::Component, prelude::*, ecs::component};
+use bevy::{ecs::component, prelude::Component, prelude::*};
 
 // common components
 #[derive(Component)]

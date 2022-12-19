@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use bevy::{math::Vec3Swizzles, prelude::*, sprite::collide_aabb::collide, utils::HashSet};
 use components::{
     Enemy, Explosion, ExplosionTimer, ExplosionToSpawn, FromEnemy, FromPlayer, Laser, Movable,
-    Player, SpriteSize, Velocity, Orientation,
+    Orientation, Player, SpriteSize, Velocity,
 };
 use enemy::EnemyPlugin;
 use player::PlayerPlugin;
@@ -195,7 +195,6 @@ fn moveable_system(
         }
 
         transform.rotation = Quat::from_rotation_z(orientation.theta);
-
     }
 }
 
@@ -396,7 +395,10 @@ fn gamepad_connections(
         let id = ev.gamepad;
         match &ev.event_type {
             GamepadEventType::Connected(info) => {
-                println!("New gamepad connected with ID: {:?}, name: {}", id, info.name);
+                println!(
+                    "New gamepad connected with ID: {:?}, name: {}",
+                    id, info.name
+                );
 
                 // if we don't have any gamepad yet, use this one
                 if my_gamepad.is_none() {
@@ -436,17 +438,21 @@ fn gamepad_input(
 
     // The joysticks are represented using a separate axis for X and Y
     let axis_lx = GamepadAxis {
-        gamepad, axis_type: GamepadAxisType::LeftStickX
+        gamepad,
+        axis_type: GamepadAxisType::LeftStickX,
     };
     let axis_ly = GamepadAxis {
-        gamepad, axis_type: GamepadAxisType::LeftStickY
+        gamepad,
+        axis_type: GamepadAxisType::LeftStickY,
     };
-    
+
     let axis_rx = GamepadAxis {
-        gamepad, axis_type: GamepadAxisType::RightStickX
+        gamepad,
+        axis_type: GamepadAxisType::RightStickX,
     };
     let axis_ry = GamepadAxis {
-        gamepad, axis_type: GamepadAxisType::RightStickY
+        gamepad,
+        axis_type: GamepadAxisType::RightStickY,
     };
 
     for (mut velocity, mut orientation) in query.iter_mut() {
@@ -454,42 +460,44 @@ fn gamepad_input(
             velocity.x = x;
             velocity.y = y;
         };
-        
+
         if let (Some(x), Some(y)) = (axes.get(axis_rx), axes.get(axis_ry)) {
             let acute_angle = if x == 0. {
                 // if x is 0 then return to previous state and avoid division by zero
                 return;
             } else {
-                y.abs()/x.abs().atan()
+                y.abs() / x.abs().atan()
             };
-            let acute_angle = (y.abs()/x.abs()).atan();
+            let acute_angle = (y.abs() / x.abs()).atan();
             let theta = if y.is_sign_positive() {
                 // quadrant I
                 if x.is_sign_positive() {
                     acute_angle
-                } else { // quadrant II
+                } else {
+                    // quadrant II
                     PI - acute_angle
                 }
             } else {
                 // quadrant III
                 if x.is_sign_negative() {
                     PI + acute_angle
-                } else { // quadrant IV
+                } else {
+                    // quadrant IV
                     (2. * PI) - acute_angle
                 }
             };
             println!("{}", theta);
             // account for sprite starting with Pi/ 2 rotation
-            orientation.theta = theta - ( PI / 2.)
-        }  
+            orientation.theta = theta - (PI / 2.)
+        }
     }
 
-
-    /* 
     // In a real game, the buttons would be configurable, but here we hardcode them
-    let jump_button = GamepadButton {
-        gamepad, button_type: GamepadButtonType::South
+    let fire_button = GamepadButton {
+        gamepad,
+        button_type: GamepadButtonType::RightTrigger,
     };
+    /*
     let heal_button = GamepadButton {
         gamepad, button_type: GamepadButtonType::East
     };
@@ -497,8 +505,7 @@ fn gamepad_input(
     if buttons.just_pressed(jump_button) {
         // button just pressed: make the player jump
     }
+    */
 
-    if buttons.pressed(heal_button) {
-        // button being held down: heal the player
-    } */
+    if buttons.pressed(fire_button) {}
 }

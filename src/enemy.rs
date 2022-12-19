@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
 use crate::{
-    components::{Enemy, FromEnemy, Laser, Movable, Player, SpriteSize, Velocity, Orientation},
+    components::{Enemy, FromEnemy, Laser, Movable, Orientation, Player, SpriteSize, Velocity},
     EnemyCount, GameTextures, WinSize, BASE_SPEED, ENEMY_LASER_SIZE, ENEMY_MAX, ENEMY_SIZE,
     SPRITE_SCALE, TIME_STEP,
 };
