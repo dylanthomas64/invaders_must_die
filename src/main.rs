@@ -99,8 +99,8 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             window: WindowDescriptor {
                 title: "Invaders must die".to_string(),
-                width: 598.0,
-                height: 676.0,
+                width: 1080.0,
+                height: 720.0,
                 ..Default::default()
             },
             ..Default::default()
@@ -120,6 +120,7 @@ fn main() {
         .add_system(gamepad_connections)
         .add_system(gamepad_input)
         .add_system(moveable_system.after(gamepad_input))
+        .add_system(despawn_system)
         .add_system(player_laser_hit_enemy_system)
         .add_system(explosion_to_spawn_system)
         .add_system(explosion_animation_system)
@@ -391,7 +392,6 @@ fn apply_gravitational_forces(
     let mut cumulative_force_hash_map = HashMap::new();
     let mut data: Vec<(Entity, (f32, f32), f32)> = Vec::new();
     for (ent, mut tf, mass_prop) in query.iter() {
-        println!("{:?} {}Kg @ altitude: {}", ent, mass_prop.0.mass, tf.translation.y);
 
         cumulative_force_hash_map.insert(ent, Vec2::new(0., 0.));
         //println!("tf: {:?}", tf);
@@ -445,7 +445,7 @@ fn apply_gravitational_forces(
             // cumulatively adds force vectors to entities existing forces
             cumulative_force_hash_map.entry(*ent_1).and_modify(|force| *force += force_1);
             cumulative_force_hash_map.entry(*ent_2).and_modify(|force| *force += force_2);
-            println!("{}N applied on {:?} <-> {:?}", force, ent_1, ent_2);
+            //println!("{}N applied on {:?} <-> {:?}", force, ent_1, ent_2);
         }
 
     }
@@ -455,6 +455,25 @@ fn apply_gravitational_forces(
     }
 }
 
+fn despawn_system(
+    mut commands: Commands,
+    win_size: Res<WinSize>,
+    mut query: Query<(Entity, &Transform), With<RigidBody>>
+) {
+     for (entity, tf) in query.iter_mut() {
+        let translation = tf.translation;
+            //despawn when off screen
+            const MARGIN: f32 = 200.;
+            if translation.y > win_size.h / 2. + MARGIN
+                || translation.y < -win_size.h / 2. - MARGIN
+                || translation.x > win_size.w / 2. + MARGIN
+                || translation.x < -win_size.w / 2. - MARGIN
+            {
+                println!("--> despawn {entity:?} @ {translation:?}");
+                commands.entity(entity).despawn();
+            }
+        }
+}
 
 
 fn moveable_system(
@@ -466,7 +485,7 @@ fn moveable_system(
         let translation = &mut transform.translation;
         translation.x += velocity.x * TIME_STEP * BASE_SPEED;
         translation.y += velocity.y * TIME_STEP * BASE_SPEED;
-
+        /* 
         if movable.auto_despawn {
             //despawn when off screen
             const MARGIN: f32 = 200.;
@@ -478,7 +497,7 @@ fn moveable_system(
                 //println!("--> despawn {entity:?} @ {translation:?}");
                 commands.entity(entity).despawn();
             }
-        }
+        } */
 
         transform.rotation = Quat::from_rotation_z(orientation.theta);
     }
@@ -772,7 +791,7 @@ fn gamepad_input(
                     (2. * PI) - acute_angle
                 }
             };
-            println!("{}", theta);
+            //println!("{}", theta);
             // account for sprite starting with Pi/ 2 rotation
             orientation.theta = theta - (PI / 2.)
         }
