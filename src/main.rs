@@ -41,7 +41,9 @@ const PLAYER_RESPAWN_DELAY: f64 = 2.;
 const ENEMY_MAX: u32 = 0;
 
 const G: f32 = 0.00000000006674;
-const THRUST: f32 = 10_000.;
+const PRIMARY_THRUST: f32 = 100_000.; // left trigger
+const SECONDARY_THRUST: f32 = 10_000.; // thumbstick adjustments
+
 const LASER_VELOCITY: f32 = 100.;
 
 // Resources
@@ -252,7 +254,7 @@ fn setup_physics(mut commands: Commands) {
                 ..Default::default()
             }));
     };
-    for n in -3..3 {
+    for n in -8..8 {
         spawn_light_ball(100.*n as f32, 100.);
     }
 
@@ -490,7 +492,7 @@ fn apply_gravitational_forces(
 fn despawn_system(
     mut commands: Commands,
     win_size: Res<WinSize>,
-    mut query: Query<(Entity, &Transform), With<RigidBody>>
+    mut query: Query<(Entity, &Transform), Without<Player>>
 ) {
      for (entity, tf) in query.iter_mut() {
         let translation = tf.translation;
@@ -767,14 +769,36 @@ fn gamepad_input(
         gamepad,
         axis_type: GamepadAxisType::RightStickY,
     };
+      // In a real game, the buttons would be configurable, but here we hardcode them
+      let thrust = GamepadButton {
+        gamepad,
+        button_type: GamepadButtonType::LeftTrigger2,
+    };
+    /*
+    let heal_button = GamepadButton {
+        gamepad, button_type: GamepadButtonType::East
+    };
+
+    if buttons.just_pressed(jump_button) {
+        // button just pressed: make the player jump
+    }
+    */
+
 
     for (mut ext_force, mut transform, mut orientation) in query.iter_mut() {
         if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
-            ext_force.force = Vec2::new(x*THRUST, y*THRUST);
-            println!("thrust factor ({},{})N", x, y);
+            ext_force.force = Vec2::new(x*SECONDARY_THRUST, y*SECONDARY_THRUST);
+            //println!("thrust factor ({},{})N", x, y);
         };
 
+        if buttons.pressed(thrust) {
+            ext_force.force = Vec2::new(-orientation.theta.sin()*PRIMARY_THRUST, orientation.theta.cos()*PRIMARY_THRUST);
+            //println!("thrust!!")
+        }
+    
+
         if let (Some(x), Some(y)) = (axes.get(axis_rx), axes.get(axis_ry)) {
+
             let acute_angle = if x == 0. {
                 // if x is 0 then return to previous state and avoid division by zero
                 return;
@@ -802,27 +826,13 @@ fn gamepad_input(
             //println!("{}", theta);
             // account for sprite starting with Pi / 2 rotation
             transform.rotation = Quat::from_rotation_z(theta - (PI / 2.));
+            ext_force.torque = 20.;
             orientation.theta = theta - (PI / 2.);
 
             println!("{}", theta);
         }
     }
 
-    // In a real game, the buttons would be configurable, but here we hardcode them
-    let fire_button = GamepadButton {
-        gamepad,
-        button_type: GamepadButtonType::RightTrigger,
-    };
-    /*
-    let heal_button = GamepadButton {
-        gamepad, button_type: GamepadButtonType::East
-    };
 
-    if buttons.just_pressed(jump_button) {
-        // button just pressed: make the player jump
-    }
-    */
-
-    if buttons.pressed(fire_button) {}
 }
 

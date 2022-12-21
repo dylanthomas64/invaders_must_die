@@ -154,7 +154,8 @@ fn player_fire_system(
                     .spawn(SpriteBundle {
                         texture: game_textures.player_laser.clone(),
                         transform: Transform {
-                            translation: Vec3::new(x + x_offset, y + y_offset, 0.),
+                            // orient laser spawn relative to player orientation
+                            translation: Vec3::new(x + x_offset*orientation.theta.cos(), y + y_offset*orientation.theta.sin(), 0.),
                             rotation: Quat::from_rotation_z(theta),
                             scale: Vec3::new(SPRITE_SCALE, SPRITE_SCALE, 1.),
                             ..Default::default()
@@ -179,7 +180,8 @@ fn player_fire_system(
                     //.insert(ColliderMassProperties::Density(0.01));
             };
 
-            spawn_laser(0., 50.);
+            spawn_laser(30., 30.);
+            //spawn_laser(-20., 20.);
 
             // spawn three lasers
             //spawn_laser(x_offset, 0.);
