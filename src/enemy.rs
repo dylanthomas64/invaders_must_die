@@ -6,7 +6,7 @@ use crate::{
     SPRITE_SCALE, TIME_STEP,
 };
 use bevy::{ecs::schedule::ShouldRun, prelude::*, time::FixedTimestep};
-use rand::{thread_rng, Rng};
+
 
 pub struct EnemyPlugin;
 
@@ -30,12 +30,14 @@ fn enemy_spawn_system(
 ) {
     if enemy_count.0 < ENEMY_MAX {
         // compute the x/y
+        /* 
         let mut rng = thread_rng();
         let w_span = win_size.w / 2. - 100.;
         let h_span = win_size.h / 2. - 100.;
         let x = rng.gen_range(-w_span..w_span);
         let y = rng.gen_range(-h_span..h_span);
-
+        */
+        let (x, y) = (0., 0.);
         commands
             .spawn(SpriteBundle {
                 texture: game_textures.enemy.clone(),
@@ -54,11 +56,14 @@ fn enemy_spawn_system(
 }
 
 fn enemy_fire_criteria() -> ShouldRun {
+    /* 
     if thread_rng().gen_bool(1. / 60.) {
         ShouldRun::Yes
     } else {
         ShouldRun::No
-    }
+    } */
+
+    ShouldRun::No
 }
 
 fn enemy_fire_system(

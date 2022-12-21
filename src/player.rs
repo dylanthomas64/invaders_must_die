@@ -3,10 +3,10 @@ use std::f32::consts::PI;
 use crate::{
     components::{FromPlayer, Laser, Movable, Player, SpriteSize, Velocity, Orientation},
     GameTextures, PlayerState, WinSize, PLAYER_LASER_SIZE, PLAYER_RESPAWN_DELAY, PLAYER_SIZE,
-    SPRITE_SCALE, MyGamepad,
+    SPRITE_SCALE, MyGamepad, LASER_VELOCITY,
 };
 use bevy::{prelude::*, time::FixedTimestep};
-use bevy_rapier2d::prelude::{RigidBody, Collider, ExternalForce, Restitution, ReadMassProperties, MassProperties, ColliderMassProperties};
+use bevy_rapier2d::prelude::{RigidBody, Collider, ExternalForce, Restitution, ReadMassProperties, MassProperties, ColliderMassProperties, ExternalImpulse};
 
 pub struct PlayerPlugin;
 
@@ -70,8 +70,12 @@ fn player_spawn_system(
             })
             // PLAYER PHYICS
             .insert(RigidBody::Dynamic)
-            .insert(Collider::triangle(Vec2::new(10.0, 10.0), Vec2::new(10.0, 10.0), Vec2::new(10.0, 10.0)))
-            .insert(Restitution::coefficient(1.0));
+            .insert(Collider::triangle(Vec2::new(-50.0, -30.0), Vec2::new(50.0, -30.0), Vec2::new(0.0, 40.0)))
+            .insert(Restitution::coefficient(0.7))
+            .insert(ExternalForce {
+                force: Vec2::new(0., 0.),
+                torque: 0.
+            });
             player_state.spawned();
     }
 }
@@ -158,21 +162,24 @@ fn player_fire_system(
                         ..Default::default()
                     })
                     .insert(Laser)
-                    .insert(Movable { auto_despawn: true })
-                    .insert(Velocity { x: - 2.*orientation.theta.sin(), y: 2.*orientation.theta.cos() }) // laser speed of 2
+                    .insert(ExternalImpulse {
+                        impulse: Vec2::new(- 2.*orientation.theta.sin()*LASER_VELOCITY, 2.*orientation.theta.cos()*LASER_VELOCITY),
+                        torque_impulse: 0.,
+                    })
+                    //.insert(Velocity { x: - 2.*orientation.theta.sin(), y: 2.*orientation.theta.cos() }) // laser speed of 2
                     .insert(FromPlayer)
                     .insert(SpriteSize::from(PLAYER_LASER_SIZE))
                     .insert(Orientation { theta: theta })
                     .insert(RigidBody::Dynamic)
-                    .insert(Collider::cuboid(10., 20.))
-                    .insert(Restitution::coefficient(1.0))
+                    .insert(Collider::cuboid(1., 2.))
+                    .insert(Restitution::coefficient(0.0))
                     .insert(ReadMassProperties(MassProperties {
                         ..Default::default()
-                    }))
-                    .insert(ColliderMassProperties::Density(0.01));
+                    }));
+                    //.insert(ColliderMassProperties::Density(0.01));
             };
 
-            spawn_laser(0., 0.);
+            spawn_laser(0., 50.);
 
             // spawn three lasers
             //spawn_laser(x_offset, 0.);

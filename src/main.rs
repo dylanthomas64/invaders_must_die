@@ -12,6 +12,7 @@ use bevy_rapier2d::prelude::*;
 
 use std::collections::HashMap;
 
+
 //#[deny(warnings)]
 
 mod components;
@@ -40,6 +41,8 @@ const PLAYER_RESPAWN_DELAY: f64 = 2.;
 const ENEMY_MAX: u32 = 0;
 
 const G: f32 = 0.00000000006674;
+const THRUST: f32 = 10_000.;
+const LASER_VELOCITY: f32 = 100.;
 
 // Resources
 
@@ -119,8 +122,8 @@ fn main() {
         .add_system(apply_gravitational_forces)
         .add_system(gamepad_connections)
         .add_system(gamepad_input)
-        .add_system(moveable_system.after(gamepad_input))
-        .add_system(despawn_system)
+        //.add_system(moveable_system.after(gamepad_input))
+        .add_system(despawn_system.after(apply_gravitational_forces))
         .add_system(player_laser_hit_enemy_system)
         .add_system(explosion_to_spawn_system)
         .add_system(explosion_animation_system)
@@ -193,7 +196,7 @@ fn setup_system(
 fn setup_physics(mut commands: Commands) {
 
     // FLOOR
-    /* 
+    /*
     commands.spawn(Collider::cuboid(500., 10.))
         .insert(TransformBundle::from(Transform::from_xyz(0.0, -300., 0.0)));
         */
@@ -226,6 +229,7 @@ fn setup_physics(mut commands: Commands) {
     
     spawn_dense_ball(-30., 0., 50., 1.0);
     spawn_dense_ball(150., 60., 75., 1.3);
+    spawn_dense_ball(0., 30., 45., 1.5);
 
 
 
@@ -274,10 +278,38 @@ fn setup_physics(mut commands: Commands) {
     for n in -3..3 {
         spawn_cuboid(200.*n as f32, -100.);
     }
+
+    let mut spawn_triangle = |x, y| {
+        commands.spawn(RigidBody::Dynamic)
+            .insert(Collider::triangle(Vec2::new(20., 20.), Vec2::new(20., 20.), Vec2::new(20., 20.)))
+            .insert(TransformBundle::from(Transform::from_xyz(x, y, 0.,)))
+            .insert(ExternalForce {
+                force: Vec2::new(0., -100.),
+                torque: 0.
+            })
+            .insert(Restitution::coefficient(0.8))
+            .insert(ColliderMassProperties::Density(1.0))
+            .insert(ExternalImpulse {
+                impulse: Vec2::new(0.0, 0.0),
+                torque_impulse: 0.,
+            })
+            .insert(ReadMassProperties(MassProperties {
+                ..Default::default()
+            }));
+    };
+
+    for n in -3..3 {
+        //spawn_triangle(150.*n as f32, 0.);
+    }
+
         
         
   
 }
+
+
+
+
 
 fn print_ball_altitude(positions: Query<(Entity, &Transform, &ReadMassProperties)>) {
     for (ent, tf, mass_prop) in positions.iter() {
@@ -476,32 +508,8 @@ fn despawn_system(
 }
 
 
-fn moveable_system(
-    mut commands: Commands,
-    win_size: Res<WinSize>,
-    mut query: Query<(Entity, &Velocity, &Orientation, &mut Transform, &Movable)>,
-) {
-    for (entity, velocity, orientation, mut transform, movable) in query.iter_mut() {
-        let translation = &mut transform.translation;
-        translation.x += velocity.x * TIME_STEP * BASE_SPEED;
-        translation.y += velocity.y * TIME_STEP * BASE_SPEED;
-        /* 
-        if movable.auto_despawn {
-            //despawn when off screen
-            const MARGIN: f32 = 200.;
-            if translation.y > win_size.h / 2. + MARGIN
-                || translation.y < -win_size.h / 2. - MARGIN
-                || translation.x > win_size.w / 2. + MARGIN
-                || translation.x < -win_size.w / 2. - MARGIN
-            {
-                //println!("--> despawn {entity:?} @ {translation:?}");
-                commands.entity(entity).despawn();
-            }
-        } */
 
-        transform.rotation = Quat::from_rotation_z(orientation.theta);
-    }
-}
+
 
 fn player_laser_hit_enemy_system(
     mut commands: Commands,
@@ -731,7 +739,7 @@ fn gamepad_input(
     axes: Res<Axis<GamepadAxis>>,
     buttons: Res<Input<GamepadButton>>,
     my_gamepad: Option<Res<MyGamepad>>,
-    mut query: Query<(&mut Velocity, &mut Orientation), With<Player>>,
+    mut query: Query<(&mut ExternalForce, &mut Transform, &mut Orientation), With<Player>>,
 ) {
     let gamepad = if let Some(gp) = my_gamepad {
         // a gamepad is connected, we have the id
@@ -760,10 +768,10 @@ fn gamepad_input(
         axis_type: GamepadAxisType::RightStickY,
     };
 
-    for (mut velocity, mut orientation) in query.iter_mut() {
+    for (mut ext_force, mut transform, mut orientation) in query.iter_mut() {
         if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
-            velocity.x = x;
-            velocity.y = y;
+            ext_force.force = Vec2::new(x*THRUST, y*THRUST);
+            println!("thrust factor ({},{})N", x, y);
         };
 
         if let (Some(x), Some(y)) = (axes.get(axis_rx), axes.get(axis_ry)) {
@@ -792,8 +800,11 @@ fn gamepad_input(
                 }
             };
             //println!("{}", theta);
-            // account for sprite starting with Pi/ 2 rotation
-            orientation.theta = theta - (PI / 2.)
+            // account for sprite starting with Pi / 2 rotation
+            transform.rotation = Quat::from_rotation_z(theta - (PI / 2.));
+            orientation.theta = theta - (PI / 2.);
+
+            println!("{}", theta);
         }
     }
 
