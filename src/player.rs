@@ -1,11 +1,12 @@
 use std::f32::consts::PI;
 
 use crate::{
-    components::{FromPlayer, Laser, Movable, Orientation, Player, SpriteSize, Velocity},
-    GameTextures, MyGamepad, PlayerState, WinSize, PLAYER_LASER_SIZE, PLAYER_RESPAWN_DELAY,
-    PLAYER_SIZE, SPRITE_SCALE,
+    components::{FromPlayer, Laser, Movable, Player, SpriteSize, Velocity, Orientation},
+    GameTextures, PlayerState, WinSize, PLAYER_LASER_SIZE, PLAYER_RESPAWN_DELAY, PLAYER_SIZE,
+    SPRITE_SCALE, MyGamepad,
 };
 use bevy::{prelude::*, time::FixedTimestep};
+use bevy_rapier2d::prelude::{RigidBody, Collider, ExternalForce, Restitution};
 
 pub struct PlayerPlugin;
 
@@ -66,8 +67,12 @@ fn player_spawn_system(
             .insert(Orientation::default())
             .insert(Movable {
                 auto_despawn: false,
-            });
-        player_state.spawned();
+            })
+            // PLAYER PHYICS
+            .insert(RigidBody::Dynamic)
+            .insert(Collider::triangle(Vec2::new(10.0, 10.0), Vec2::new(10.0, 10.0), Vec2::new(10.0, 10.0)))
+            .insert(Restitution::coefficient(1.0));
+            player_state.spawned();
     }
 }
 
@@ -76,6 +81,7 @@ fn player_keyboard_event_system(
     mut query: Query<(&mut Velocity, &mut Orientation), With<Player>>,
 ) {
     for (mut velocity, mut orientation) in query.iter_mut() {
+
         // WASD
         velocity.x = if kb.pressed(KeyCode::A) {
             -1.
@@ -102,9 +108,11 @@ fn player_keyboard_event_system(
             3. * PI / 2.
         } else if kb.pressed(KeyCode::Left) {
             PI / 2.
-        } else {
-            continue;
-        };
+        }
+        else { continue };
+
+
+
     }
 }
 
@@ -116,6 +124,8 @@ fn player_fire_system(
     game_textures: Res<GameTextures>,
     query: Query<(&Transform, &Orientation), With<Player>>,
 ) {
+
+    // locate connected game pad
     let gamepad = if let Some(gp) = my_gamepad {
         // a gamepad is connected, we have the id
         gp.0
@@ -125,17 +135,10 @@ fn player_fire_system(
     };
 
     for (player_tf, orientation) in query.iter() {
-        if kb.just_pressed(KeyCode::Space)
-            || button.pressed(GamepadButton {
-                gamepad,
-                button_type: GamepadButtonType::RightTrigger2,
-            })
-        {
-            let (x, y, theta) = (
-                player_tf.translation.x,
-                player_tf.translation.y,
-                orientation.theta,
-            );
+        if kb.just_pressed(KeyCode::Space) || button.pressed(GamepadButton {
+            gamepad, button_type: GamepadButtonType::RightTrigger2
+        }) {
+            let (x, y, theta) = (player_tf.translation.x, player_tf.translation.y, orientation.theta);
 
             // offset to change where laser fires from
             let x_offset = PLAYER_SIZE.0 / 4. * SPRITE_SCALE;
@@ -156,16 +159,13 @@ fn player_fire_system(
                     })
                     .insert(Laser)
                     .insert(Movable { auto_despawn: true })
-                    .insert(Velocity {
-                        x: -2. * orientation.theta.sin(),
-                        y: 2. * orientation.theta.cos(),
-                    }) // laser speed of 2
+                    .insert(Velocity { x: - 2.*orientation.theta.sin(), y: 2.*orientation.theta.cos() }) // laser speed of 2
                     .insert(FromPlayer)
                     .insert(SpriteSize::from(PLAYER_LASER_SIZE))
                     .insert(Orientation { theta: theta });
             };
 
-            spawn_laser(0., 0.)
+            spawn_laser(0., 0.);
 
             // spawn three lasers
             //spawn_laser(x_offset, 0.);

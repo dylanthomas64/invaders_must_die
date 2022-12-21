@@ -8,6 +8,12 @@ use components::{
 use enemy::EnemyPlugin;
 use player::PlayerPlugin;
 
+use bevy_rapier2d::prelude::*;
+
+use std::collections::HashMap;
+
+//#[deny(warnings)]
+
 mod components;
 mod enemy;
 mod player;
@@ -32,6 +38,8 @@ const BASE_SPEED: f32 = 500.;
 
 const PLAYER_RESPAWN_DELAY: f64 = 2.;
 const ENEMY_MAX: u32 = 0;
+
+const G: f32 = 0.00000000006674;
 
 // Resources
 
@@ -100,6 +108,14 @@ fn main() {
         .add_plugin(PlayerPlugin)
         .add_plugin(EnemyPlugin)
         .add_startup_system(setup_system)
+        .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(2.0))
+        .insert_resource(RapierConfiguration {
+            gravity: Vec2::new(0., 0.),
+            ..Default::default()
+        })
+        .add_plugin(RapierDebugRenderPlugin::default())
+        .add_startup_system(setup_physics)
+        .add_system(apply_gravity_to_all)
         .add_system(gamepad_connections)
         .add_system(gamepad_input)
         .add_system(moveable_system.after(gamepad_input))
@@ -170,6 +186,252 @@ fn setup_system(
     commands.insert_resource(game_textures);
     commands.insert_resource(EnemyCount(0));
 }
+
+
+fn setup_physics(mut commands: Commands) {
+
+    // FLOOR
+    
+    commands.spawn(Collider::cuboid(500., 10.))
+        .insert(TransformBundle::from(Transform::from_xyz(0.0, -200., 0.0)));
+    
+    // LARGE DENSE BALL
+    let mut spawn_dense_ball = |x: f32, y: f32| {
+        commands.spawn(RigidBody::Dynamic)
+        .insert(Collider::ball(70.))
+        .insert(TransformBundle::from(Transform::from_xyz(x, y, 0.0)))
+        .insert(Velocity {
+            x: 0.,
+            y: 0.0,
+        })
+        .insert(Sleeping::disabled())
+        .insert(Ccd::enabled())
+        .insert(Restitution::coefficient(0.7))
+        .insert(ExternalForce {
+            force: Vec2::new(0., 0.),
+            torque: 0.0,
+        })
+        .insert(ExternalImpulse {
+            impulse: Vec2::new(0.0, -1.0),
+            torque_impulse: 0.,
+        })
+        .insert(ColliderMassProperties::Density(2.0))
+        .insert(ReadMassProperties(MassProperties {
+            ..Default::default()
+        }));
+    };
+    
+    for n in (-250..250).step_by(100) {
+        //spawn_dense_ball(n as f32, 0.)
+    }
+    spawn_dense_ball(-50., 0.);
+
+
+
+    // LIGHT ball
+    let mut spawn_light_ball = || {
+        commands.spawn(RigidBody::Dynamic)
+            .insert(Collider::ball(5.))
+            .insert(TransformBundle::from(Transform::from_xyz(50.0, 10.0, 0.0)))
+            .insert(ExternalForce {
+                force: Vec2::new(0., 0.),
+                torque: 0.
+            })
+            .insert(Restitution::coefficient(0.7))
+            .insert(ColliderMassProperties::Density(1.0))
+            .insert(ExternalImpulse {
+                impulse: Vec2::new(0.0, -10.0),
+                torque_impulse: 0.,
+            })
+            .insert(ReadMassProperties(MassProperties {
+                ..Default::default()
+            }));
+    };
+    for n in 0..20 {
+        //spawn_light_ball()ss
+    };
+    spawn_light_ball();
+        
+        
+  
+}
+
+fn print_ball_altitude(positions: Query<&Transform, With<RigidBody>>) {
+    for transform in positions.iter() {
+        println!("Ball altitude: {}", transform.translation.y);
+    }
+}
+
+// apply gravitational field in centrew
+fn apply_central_gravity(
+    mut ext_forces: Query<(&Transform, &mut ExternalForce)>
+) {
+    for (transform, mut ext_force) in ext_forces.iter_mut() {
+        // apply force towards centre (0,0)
+        let (x, y) = (transform.translation.x, transform.translation.y);        
+        // calculate disance from centre
+        let distance_squared = x.powf(2.) + y.powf(2.);
+        println!("distance: {}", distance_squared);
+        // calculate acute angle towards centre
+        let acute_angle = if x == 0. {
+            PI / 2.
+        } else {
+            (y.abs() / x.abs()).atan()
+        };
+
+        if distance_squared != 0. {
+            // resolve x and y parts of force to create absolute force of 10N
+        let force_x = (acute_angle.cos() * 10.);
+        let force_y = (acute_angle.sin() * 10.);
+
+         // calulate direction coefficient
+         let x_s = if x.is_sign_positive() {
+            -1.
+        } else {
+            1.
+        };
+        // calulate direction coefficient
+        let y_s = if y.is_sign_positive() {
+            -1.
+        } else {
+            1.
+        };
+        ext_force.force = Vec2::new(force_x*x_s, force_y*y_s);
+        }
+        
+
+       
+
+
+    }
+}
+
+const extra_gravity: f32 = 1_000_000_000_000.;
+
+fn apply_gravity_for_two(
+    mut query: Query<(&Transform, &ReadMassProperties)>,
+    mut force_query: Query<&mut ExternalForce>,
+) {
+    let mut coordinates: Vec<(f32, f32)> = Vec::new();
+    let mut masses: Vec<f32> = Vec::new();
+    for (tf, mass) in query.iter() {
+        //println!("{}kg @ ({},{})", mass.0.mass, tf.translation.x, tf.translation.y);
+        coordinates.push((tf.translation.x, tf.translation.y));
+        masses.push(mass.0.mass);
+    }
+    // dx, dy relative to first object
+    let (dx, dy) = (coordinates[0].0 - coordinates[1].0, coordinates[0].1 - coordinates[1].1);
+    
+    let distance_squared = dx.powf(2.) + dy.powf(2.);
+    // Newton's law of gravitation * extra strong gravity
+    let force = (masses[0]*masses[1]*G) / distance_squared;
+    //println!("{}m", distance_squared.sqrt());
+    //println!("{force}N");
+    let acute_angle = if dx == 0. {
+        PI / 2.
+    } else {
+        (dy.abs() / dx.abs()).atan()
+    };
+    // resolve x and y forces
+    let force_x = (acute_angle.cos() * force * extra_gravity);
+    let force_y = (acute_angle.sin() * force * extra_gravity);
+
+    // determine direction of force to apply
+    let x_s = if dx.is_sign_positive() {
+        -1.
+    } else {
+        1.
+    };
+    // calulate direction coefficient
+    let y_s = if dy.is_sign_positive() {
+        -1.
+    } else {
+        1.
+    };
+    
+    let mut iter = force_query.iter_mut();
+    
+    // apply forces on first
+    iter.next().unwrap().force = Vec2::new(force_x*x_s, force_x*y_s);
+    // apply opposite forces on the second
+    iter.next().unwrap().force = Vec2::new(-force_x*x_s, -force_x*y_s);
+
+    println!("applying: ({}N,{}N)  and ({}N,{}N)", force_x*x_s, force_x*y_s, -force_x*x_s, -force_x*y_s)
+}
+
+
+fn apply_gravity_to_all(
+    mut commands: Commands,
+    query: Query<(Entity, &Transform, &ReadMassProperties)>,
+) {
+    let mut cumulative_force_hash_map = HashMap::new();
+    let mut data: Vec<(Entity, (f32, f32), f32)> = Vec::new();
+    for (ent, tf, mass_prop) in query.iter() {
+        // push (ent, curr_force) to Vec<(Entity, ExternalForce)>
+        cumulative_force_hash_map.insert(ent, Vec2::new(0., 0.));
+        data.push((ent, (tf.translation.x, tf.translation.y), mass_prop.0.mass))
+
+        // create vector of all entities and properties, for each object iterate over all other objects and calc distance and gravitational force.
+        // make new list of Vec<(Entity, ExternalForce)>
+        //
+    }
+
+    for (n, (ent_1, (x_1,y_1), mass_1)) in data.clone().iter().enumerate() {
+        // ignore first n terms as have already been calcualted
+        for (ent_2, (x_2,y_2), mass_2) in data.iter().skip(n) {
+            // return if comparing same entity
+            if ent_1 == ent_2 {
+                return
+            }
+
+            // change in (x, y) between two points
+            let (dx, dy) = (x_1 - x_2, y_1 - y_2);
+            // find distance squared using pythagoras
+            let distance_squared = dx.powf(2.) + dy.powf(2.);
+            // calculate force due to gravity
+            let force = (mass_1*mass_2*G) / distance_squared;
+
+            let acute_angle = if dx == 0. {
+                PI / 2.
+            } else {
+                (dy.abs() / dx.abs()).atan()
+            };
+            // resolve x and y forces
+            let force_x = (acute_angle.cos() * force * extra_gravity);
+            let force_y = (acute_angle.sin() * force * extra_gravity);
+        
+            // determine direction of force to apply
+            let x_s = if dx.is_sign_positive() {
+                -1.
+            } else {
+                1.
+            };
+            // calulate direction coefficient
+            let y_s = if dy.is_sign_positive() {
+                -1.
+            } else {
+                1.
+            };
+            // force due to gravity on entity_1
+            let force_1 = Vec2::new(force_x*x_s, force_x*y_s);
+            // equal opposite force due to gravity on entity_2
+            let force_2 = Vec2::new(-force_x*x_s, -force_x*y_s);
+            
+            // cumulatively adds force vectors to entities existing forces
+            cumulative_force_hash_map.entry(*ent_1).and_modify(|force| *force += force_1);
+            cumulative_force_hash_map.entry(*ent_2).and_modify(|force| *force += force_2);
+
+        }
+    }
+
+    // for each entity ovewrite with new cumulative force. doesn't maintain torque
+    //commands.get_entity(ent).unwrap().insert(ExternalForce{force: Vec2::new(-100., -100.), torque: 0.});
+    // hashmap.drain()
+
+    cumulative_force_hash_map.drain().for_each(|(ent, force)| { commands.get_entity(ent).unwrap().insert(ExternalForce{force: force, torque: 0.}) });
+
+
+
 
 fn moveable_system(
     mut commands: Commands,
@@ -509,3 +771,4 @@ fn gamepad_input(
 
     if buttons.pressed(fire_button) {}
 }
+
