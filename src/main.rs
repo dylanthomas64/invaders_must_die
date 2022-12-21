@@ -115,7 +115,8 @@ fn main() {
         })
         .add_plugin(RapierDebugRenderPlugin::default())
         .add_startup_system(setup_physics)
-        .add_system(apply_gravity_to_all)
+        //.add_system(print_ball_altitude)
+        .add_system(apply_gravitational_forces)
         .add_system(gamepad_connections)
         .add_system(gamepad_input)
         .add_system(moveable_system.after(gamepad_input))
@@ -191,74 +192,95 @@ fn setup_system(
 fn setup_physics(mut commands: Commands) {
 
     // FLOOR
-    
+    /* 
     commands.spawn(Collider::cuboid(500., 10.))
-        .insert(TransformBundle::from(Transform::from_xyz(0.0, -200., 0.0)));
+        .insert(TransformBundle::from(Transform::from_xyz(0.0, -300., 0.0)));
+        */
     
     // LARGE DENSE BALL
-    let mut spawn_dense_ball = |x: f32, y: f32| {
+    let mut spawn_dense_ball = |x: f32, y: f32, r, d| {
         commands.spawn(RigidBody::Dynamic)
-        .insert(Collider::ball(70.))
-        .insert(TransformBundle::from(Transform::from_xyz(x, y, 0.0)))
+        .insert(Collider::ball(r))
+        .insert(TransformBundle::from(Transform::from_xyz(x, y, 0.)))
         .insert(Velocity {
             x: 0.,
-            y: 0.0,
+            y: -3.0,
         })
         .insert(Sleeping::disabled())
         .insert(Ccd::enabled())
-        .insert(Restitution::coefficient(0.7))
+        .insert(Restitution::coefficient(0.8))
         .insert(ExternalForce {
-            force: Vec2::new(0., 0.),
+            force: Vec2::new(0., -100.),
             torque: 0.0,
         })
         .insert(ExternalImpulse {
-            impulse: Vec2::new(0.0, -1.0),
+            impulse: Vec2::new(0.0, 0.0),
             torque_impulse: 0.,
         })
-        .insert(ColliderMassProperties::Density(2.0))
+        .insert(ColliderMassProperties::Density(1.0))
         .insert(ReadMassProperties(MassProperties {
             ..Default::default()
         }));
     };
     
-    for n in (-250..250).step_by(100) {
-        //spawn_dense_ball(n as f32, 0.)
-    }
-    spawn_dense_ball(-50., 0.);
+    spawn_dense_ball(-30., 0., 50., 1.0);
+    spawn_dense_ball(150., 60., 75., 1.3);
 
 
 
     // LIGHT ball
-    let mut spawn_light_ball = || {
+    let mut spawn_light_ball = |x, y| {
         commands.spawn(RigidBody::Dynamic)
             .insert(Collider::ball(5.))
-            .insert(TransformBundle::from(Transform::from_xyz(50.0, 10.0, 0.0)))
+            .insert(TransformBundle::from(Transform::from_xyz(x, y, 0.,)))
             .insert(ExternalForce {
-                force: Vec2::new(0., 0.),
+                force: Vec2::new(0., -100.),
                 torque: 0.
             })
-            .insert(Restitution::coefficient(0.7))
+            .insert(Restitution::coefficient(0.8))
             .insert(ColliderMassProperties::Density(1.0))
             .insert(ExternalImpulse {
-                impulse: Vec2::new(0.0, -10.0),
+                impulse: Vec2::new(0.0, 0.0),
                 torque_impulse: 0.,
             })
             .insert(ReadMassProperties(MassProperties {
                 ..Default::default()
             }));
     };
-    for n in 0..20 {
-        //spawn_light_ball()ss
+    for n in -3..3 {
+        spawn_light_ball(100.*n as f32, 100.);
+    }
+
+    // cuboid
+    let mut spawn_cuboid = |x, y| {
+        commands.spawn(RigidBody::Dynamic)
+            .insert(Collider::cuboid(10., 20.))
+            .insert(TransformBundle::from(Transform::from_xyz(x, y, 0.,)))
+            .insert(ExternalForce {
+                force: Vec2::new(0., -100.),
+                torque: 0.
+            })
+            .insert(Restitution::coefficient(0.8))
+            .insert(ColliderMassProperties::Density(1.0))
+            .insert(ExternalImpulse {
+                impulse: Vec2::new(0.0, 0.0),
+                torque_impulse: 0.,
+            })
+            .insert(ReadMassProperties(MassProperties {
+                ..Default::default()
+            }));
     };
-    spawn_light_ball();
+    for n in -3..3 {
+        spawn_cuboid(200.*n as f32, -100.);
+    }
         
         
   
 }
 
-fn print_ball_altitude(positions: Query<&Transform, With<RigidBody>>) {
-    for transform in positions.iter() {
-        println!("Ball altitude: {}", transform.translation.y);
+fn print_ball_altitude(positions: Query<(Entity, &Transform, &ReadMassProperties)>) {
+    for (ent, tf, mass_prop) in positions.iter() {
+        println!("{:?} {}Kg @ altitude: {}", ent, mass_prop.0.mass, tf.translation.y);
     }
 }
 
@@ -360,36 +382,37 @@ fn apply_gravity_for_two(
 }
 
 
-fn apply_gravity_to_all(
+
+
+fn apply_gravitational_forces(
     mut commands: Commands,
     query: Query<(Entity, &Transform, &ReadMassProperties)>,
 ) {
     let mut cumulative_force_hash_map = HashMap::new();
     let mut data: Vec<(Entity, (f32, f32), f32)> = Vec::new();
-    for (ent, tf, mass_prop) in query.iter() {
-        // push (ent, curr_force) to Vec<(Entity, ExternalForce)>
-        cumulative_force_hash_map.insert(ent, Vec2::new(0., 0.));
-        data.push((ent, (tf.translation.x, tf.translation.y), mass_prop.0.mass))
+    for (ent, mut tf, mass_prop) in query.iter() {
+        println!("{:?} {}Kg @ altitude: {}", ent, mass_prop.0.mass, tf.translation.y);
 
-        // create vector of all entities and properties, for each object iterate over all other objects and calc distance and gravitational force.
-        // make new list of Vec<(Entity, ExternalForce)>
-        //
+        cumulative_force_hash_map.insert(ent, Vec2::new(0., 0.));
+        //println!("tf: {:?}", tf);
+        data.push((ent, (tf.translation.x, tf.translation.y), mass_prop.0.mass))
     }
 
-    for (n, (ent_1, (x_1,y_1), mass_1)) in data.clone().iter().enumerate() {
+    for (n_1, (ent_1, (x_1,y_1), mass_1)) in data.clone().iter().enumerate() {
         // ignore first n terms as have already been calcualted
-        for (ent_2, (x_2,y_2), mass_2) in data.iter().skip(n) {
+        for (n_2, (ent_2, (x_2,y_2), mass_2)) in data.iter().enumerate().skip(n_1 + 1) {
             // return if comparing same entity
-            if ent_1 == ent_2 {
-                return
-            }
-
+            //println!("({},{}), ({}, {})", x_1, y_1, x_2, y_2);
+           
+            //println!("{}vs{}", n_1, n_2);
             // change in (x, y) between two points
             let (dx, dy) = (x_1 - x_2, y_1 - y_2);
+            //println!("dx:{}, dy:{}", dx, dy);
             // find distance squared using pythagoras
             let distance_squared = dx.powf(2.) + dy.powf(2.);
             // calculate force due to gravity
             let force = (mass_1*mass_2*G) / distance_squared;
+            //println!("abs force: {}N", force);
 
             let acute_angle = if dx == 0. {
                 PI / 2.
@@ -397,8 +420,10 @@ fn apply_gravity_to_all(
                 (dy.abs() / dx.abs()).atan()
             };
             // resolve x and y forces
-            let force_x = (acute_angle.cos() * force * extra_gravity);
-            let force_y = (acute_angle.sin() * force * extra_gravity);
+            let force_x = acute_angle.cos() * force * extra_gravity;
+            let force_y = acute_angle.sin() * force * extra_gravity;
+
+            //println!("x: {}, y: {}", force_x, force_y);
         
             // determine direction of force to apply
             let x_s = if dx.is_sign_positive() {
@@ -420,16 +445,15 @@ fn apply_gravity_to_all(
             // cumulatively adds force vectors to entities existing forces
             cumulative_force_hash_map.entry(*ent_1).and_modify(|force| *force += force_1);
             cumulative_force_hash_map.entry(*ent_2).and_modify(|force| *force += force_2);
-
+            println!("{}N applied on {:?} <-> {:?}", force, ent_1, ent_2);
         }
+
     }
 
-    // for each entity ovewrite with new cumulative force. doesn't maintain torque
-    //commands.get_entity(ent).unwrap().insert(ExternalForce{force: Vec2::new(-100., -100.), torque: 0.});
-    // hashmap.drain()
-
-    cumulative_force_hash_map.drain().for_each(|(ent, force)| { commands.get_entity(ent).unwrap().insert(ExternalForce{force: force, torque: 0.}) });
-
+    for (ent, force) in cumulative_force_hash_map.drain() {
+        commands.get_entity(ent.clone()).unwrap().insert(ExternalForce{force: force, torque: 0.});
+    }
+}
 
 
 

@@ -6,7 +6,7 @@ use crate::{
     SPRITE_SCALE, MyGamepad,
 };
 use bevy::{prelude::*, time::FixedTimestep};
-use bevy_rapier2d::prelude::{RigidBody, Collider, ExternalForce, Restitution};
+use bevy_rapier2d::prelude::{RigidBody, Collider, ExternalForce, Restitution, ReadMassProperties, MassProperties, ColliderMassProperties};
 
 pub struct PlayerPlugin;
 
@@ -162,7 +162,14 @@ fn player_fire_system(
                     .insert(Velocity { x: - 2.*orientation.theta.sin(), y: 2.*orientation.theta.cos() }) // laser speed of 2
                     .insert(FromPlayer)
                     .insert(SpriteSize::from(PLAYER_LASER_SIZE))
-                    .insert(Orientation { theta: theta });
+                    .insert(Orientation { theta: theta })
+                    .insert(RigidBody::Dynamic)
+                    .insert(Collider::cuboid(10., 20.))
+                    .insert(Restitution::coefficient(1.0))
+                    .insert(ReadMassProperties(MassProperties {
+                        ..Default::default()
+                    }))
+                    .insert(ColliderMassProperties::Density(0.01));
             };
 
             spawn_laser(0., 0.);
