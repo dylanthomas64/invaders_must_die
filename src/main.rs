@@ -1,5 +1,7 @@
 use std::f32::consts::PI;
 
+use bevy::prelude::*;
+
 use bevy::{math::Vec3Swizzles, prelude::*, sprite::collide_aabb::collide, utils::HashSet};
 use components::{
     Enemy, Explosion, ExplosionTimer, ExplosionToSpawn, FromEnemy, FromPlayer, Laser, Movable,
@@ -11,6 +13,8 @@ use player::PlayerPlugin;
 use bevy_rapier2d::prelude::*;
 
 use std::collections::HashMap;
+
+use rand::prelude::*;
 
 
 //#[deny(warnings)]
@@ -112,14 +116,14 @@ fn main() {
         }))
         .add_plugin(PlayerPlugin)
         .add_plugin(EnemyPlugin)
-        .add_startup_system(setup_system)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(2.0))
         .insert_resource(RapierConfiguration {
             gravity: Vec2::new(0., 0.),
             ..Default::default()
         })
         .add_plugin(RapierDebugRenderPlugin::default())
-        .add_startup_system(setup_physics)
+        .add_startup_system(setup_system)
+        .add_startup_system(setup_physics.after(setup_system))
         //.add_system(print_ball_altitude)
         .add_system(apply_gravitational_forces)
         .add_system(gamepad_connections)
@@ -175,6 +179,7 @@ fn setup_system(
     // add winsize resource
     let win_size = WinSize { w: win_w, h: win_h };
     commands.insert_resource(win_size);
+    println!("inserted window res");
 
     // create explosion texture atlas
     let texture_handle = asset_server.load(EXPLOSION);
@@ -195,8 +200,14 @@ fn setup_system(
 }
 
 
-fn setup_physics(mut commands: Commands) {
-
+fn setup_physics(
+    mut commands: Commands,
+ ) {
+    let win_size = WinSize {
+        w: 500.,
+        h: 500.
+    };
+    
     // FLOOR
     /*
     commands.spawn(Collider::cuboid(500., 10.))
@@ -204,7 +215,7 @@ fn setup_physics(mut commands: Commands) {
         */
     
     // LARGE DENSE BALL
-    let mut spawn_dense_ball = |x: f32, y: f32, r, d| {
+    let mut spawn_ball = |x: f32, y: f32, r:f32, d:f32| {
         commands.spawn(RigidBody::Dynamic)
         .insert(Collider::ball(r))
         .insert(TransformBundle::from(Transform::from_xyz(x, y, 0.)))
@@ -228,35 +239,19 @@ fn setup_physics(mut commands: Commands) {
             ..Default::default()
         }));
     };
-    
-    spawn_dense_ball(-30., 0., 50., 1.0);
-    spawn_dense_ball(150., 60., 75., 1.3);
-    spawn_dense_ball(0., 30., 45., 1.5);
 
-
-
-    // LIGHT ball
-    let mut spawn_light_ball = |x, y| {
-        commands.spawn(RigidBody::Dynamic)
-            .insert(Collider::ball(5.))
-            .insert(TransformBundle::from(Transform::from_xyz(x, y, 0.,)))
-            .insert(ExternalForce {
-                force: Vec2::new(0., -100.),
-                torque: 0.
-            })
-            .insert(Restitution::coefficient(0.8))
-            .insert(ColliderMassProperties::Density(1.0))
-            .insert(ExternalImpulse {
-                impulse: Vec2::new(0.0, 0.0),
-                torque_impulse: 0.,
-            })
-            .insert(ReadMassProperties(MassProperties {
-                ..Default::default()
-            }));
-    };
-    for n in -8..8 {
-        spawn_light_ball(100.*n as f32, 100.);
+    // create rng
+    let mut rng = rand::thread_rng();
+ 
+    // spawn n circles
+    for n in 0..10 {
+        let x: f32 = rng.gen_range(-win_size.w..win_size.w);
+        let y: f32 = rng.gen_range(-win_size.h..win_size.h);
+        let r: f32 = rng.gen_range(5.0..150.0);
+        let d: f32 = rng.gen_range(0.4..3.0);
+        spawn_ball(x, y, r, d);
     }
+
 
     // cuboid
     let mut spawn_cuboid = |x, y| {
@@ -277,9 +272,14 @@ fn setup_physics(mut commands: Commands) {
                 ..Default::default()
             }));
     };
-    for n in -3..3 {
-        spawn_cuboid(200.*n as f32, -100.);
+    
+
+    for n in 0..4 {
+        let x: f32 = rng.gen_range(-win_size.w..win_size.w);
+        let y: f32 = rng.gen_range(-win_size.h..win_size.h);
+        spawn_cuboid(x, y);
     }
+
 
     let mut spawn_triangle = |x, y| {
         commands.spawn(RigidBody::Dynamic)
@@ -300,10 +300,10 @@ fn setup_physics(mut commands: Commands) {
             }));
     };
 
-    for n in -3..3 {
-        //spawn_triangle(150.*n as f32, 0.);
-    }
-
+    
+        
+    
+    
         
         
   
